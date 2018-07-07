@@ -1,5 +1,5 @@
 function outputFile = organiseOutputTxtFile(detVect, NREMClass, ...
-    sleepStageVect)
+    sleepStageVect, DEF_a7)
 
 % Purpose
 %   Organise start, end and duration of events detected to be saved into a
@@ -22,11 +22,17 @@ function outputFile = organiseOutputTxtFile(detVect, NREMClass, ...
 sleepStage = sleepStageVect(starts, 1);
 
 % Column label
-titleLabel = {'start', 'end', 'duration', 'contextClassifier', ...
-    'sleepStage'};
+titleLabel = {'start_sample', 'end_sample', 'duration_sample', ...
+    'start_sec', 'end_sec', 'duration_sec', ...
+    'contextClassifier', 'sleepStage'};
 
 % Organise output matrix
-outputFile = [starts, ends, durations, NREMClass, sleepStage];
+startSec    = round(starts/DEF_a7.standard_sampleRate, 1);
+endSec      = ends/DEF_a7.standard_sampleRate;
+durationSec = durations/DEF_a7.standard_sampleRate;
+
+outputFile = [starts, ends, durations, startSec, endSec, ...
+    durationSec, NREMClass, sleepStage];
 outputFile = [titleLabel; num2cell(outputFile)];
 end
 

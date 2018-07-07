@@ -101,7 +101,8 @@ function [detVect, detInfoTS, NREMClass, outputFile] = ...
     detInfoTS(6,:) = slowRInfoTS;
     detInfoTS      = detInfoTS';
     NREMClass  = cell2mat(NREMClass);
-    outputFile = organiseOutputTxtFile(detVect, NREMClass, sleepStageVect);
+    outputFile = organiseOutputTxtFile(detVect, NREMClass, ...
+        sleepStageVect, DEF_a7);
     else
         detVect = [];
         detInfoTS = [];
