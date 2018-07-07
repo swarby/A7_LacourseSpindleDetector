@@ -1,0 +1,3 @@
+2018-07-07
+Note that for the 2018 publication (Lacourse et al) changes have been made relative to the 2014 (Warby et al, Nat Method) .m implementation of the A3 spindle detector.  Details and the updated code for the A3 detector can be found at:
+https://github.com/swarby/SpindleAlgorithms_NatMeth_2014
