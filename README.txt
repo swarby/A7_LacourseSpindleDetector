@@ -19,8 +19,8 @@ This package is composed of a main script a7MainScript.m, a setting inita7_DEF.m
   * Example input : 
     * EEGvector.mat : 1 minute of broadband filtered EEG recording, sample-by-sample
     * sleepStaging.mat : sleep stages that match the EEG timeseries, sample-by-sample
-                         For example this vector can be coded as: 0 (wake), 1 (NREM1), 2 (NREM2), 3 (NREM2) and 5 (REM) etc.
-			 Multiple sleep stages can be used as baseline by modifying the DEF_a7.bslSleepStaging variable.
+                         For example this vector can be coded as: 0 or wake, 1 or N1, 2 or N2, 3 or N3 and 5 or REM etc.
+			 Multiple sleep stages can be used as baseline by modifying the DEF_a7.bslSleepStaging variable. Variables in baseline should match the sleep stage vector.
     * artifactVector.mat : binary vector with/without (1/0) artifact that matches sample-by-sample the EEG timeseries.
 
 * Output folder 
@@ -39,7 +39,7 @@ This package is composed of a main script a7MainScript.m, a setting inita7_DEF.m
 					1 - start of the event (sample number)
 					2 - end of the event (sample number)
 					3 - duration of the event in (number of samples)
-					4 - spectral context classification from the NREMClassifier (binary)
+					4 - spectral context classification from the NREMClassifier (binary column only if context classifier is On, no column if context classifier is Off)
 					5 - sleep staging					
 
 * Library folder

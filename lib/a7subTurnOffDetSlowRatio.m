@@ -19,7 +19,7 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
 %   DEF_a7 - DEF option for the a7 spindle
 %       DEF_a7.PSAWindLength  = 0.3;    % window length in sec for absSigPow and sigmaCov
 %       DEF_a7.PSAWindStep    = 0.1;    % window step in sec for absSigPow and sigmaCov
-%       DEF_a7.BSLLengthSec   = 40;     % baseline length to estimate slow ratio
+%       DEF_a7.bslLengthSec   = 40;     % baseline length to estimate slow ratio
 %       DEF_a7.sigmaFreqHigh   = 16;    % frequency band of the broad band
 %       DEF_a7.sigmaFreqLow    = 11;    % frequency band of the sigma
 %   (optional) subjectID   - string of the subjectID (only to write warnings)
@@ -79,7 +79,7 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
     % a clean baseline (ex. BLS length is 30 sec and cov window step window is 0.1 sec, then
     % we need 300 clean cov windows to create a clean baseline)
     iAvailable      = find(validByWin==1);
-    nWinInBSL       = round(DEF_a7.BSLLengthSec/DEF_a7.PSAWindStep);
+    nWinInBSL       = round(DEF_a7.bslLengthSec/DEF_a7.PSAWindStep);
     
     % If there is less valid windows than the number required to compute the
     % baseline (then there less valid windows than 3 mins in the whole

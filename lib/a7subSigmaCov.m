@@ -114,7 +114,7 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
     % a clean baseline (ex. BLS length is 30 sec and cov window step window is 0.1 sec, then
     % we need 300 clean cov windows to create a clean baseline)
     iAvailable      = find(validByWin==1);
-    nWinInBSL       = round(DEF_a7.BSLLengthSec/DEF_a7.absWindStep);
+    nWinInBSL       = round(DEF_a7.bslLengthSec/DEF_a7.absWindStep);
     
     % If there is less valid windows than the number required to compute the
     % baseline (then there less valid windows than 3 mins in the whole

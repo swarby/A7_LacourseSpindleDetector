@@ -98,10 +98,15 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
         % detection of a spindle
         possSpindle = possSpindle & ~artifactDetectVector';
         
-        % Keep track of IN or OUT the NREM spectral context
-            [~, slowRValidTS, slowRInfoTS] = ...
-                a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, PSDHighFreq,...
-                 artifactDetectVector, DEF_a7);         
+%         % Keep track of IN or OUT the NREM spectral context
+%         if ~isempty(PSDLowFreq)
+%             [~, slowRValidTS, slowRInfoTS] = ...
+%                 a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, PSDHighFreq,...
+%                  artifactDetectVector, DEF_a7);
+%         else
+%             slowRInfoTS  = [];
+%             slowRValidTS = zeros(1,length(artifactDetectVector));
+%         end
 
         % Fixed the length of the spindle based on absSigmaPow and sigmaCov
         % Create a list of events
@@ -229,20 +234,34 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
                 warning('No spindles detected');   
             end
             
-            % Verify for each detection the NREM classifier flag
-            for iEvt = 1 : length(startsEventSmpFixLength)
-                % The context is considered "IN" if at least one sample of
-                % the spindle is "IN" the NREM spectral context
-                NREMClass{iInterval}(iEvt,1) = any( slowRValidTS(startsEventSmpFixLength(iEvt) ...
-                    : endsEventSmpFixLength(iEvt)));
-            end
-
             % Go back to the detection vector in order to evaluate performance
             detectionVectFixTmp = eventSmpList2DetectVect( [...
                 startsEventSmpFixLength,endsEventSmpFixLength], size(detInfoTS,2) );
 
             % Create the set of detection for each interval of confidence
             detectionVectFix(:,iInterval) = detectionVectFixTmp;
+            
+            %------------------------------------------------------------------
+            %% Spindle context classifier
+            %------------------------------------------------------------------        
+            % if PSDLowFreq empty --> context classifier Off
+            if ~isempty(PSDLowFreq)
+                % Keep track of IN or OUT the NREM spectral context
+                [~, slowRValidTS, slowRInfoTS] = ...
+                    a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, ...
+                    PSDHighFreq, artifactDetectVector, DEF_a7);
+                % Verify for each detection the NREM classifier flag
+                for iEvt = 1 : length(startsEventSmpFixLength)
+                    % The context is considered "IN" if at least one sample of
+                    % the spindle is "IN" the NREM spectral context
+                    NREMClass{iInterval}(iEvt,1) = any( slowRValidTS(startsEventSmpFixLength(iEvt) ...
+                        : endsEventSmpFixLength(iEvt)));
+                end             
+            else
+                slowRInfoTS  = [];
+            end            
+            
+            
         else
             % No detections possible
             detectionVectFix(:,iInterval) = zeros(nSamples,1);

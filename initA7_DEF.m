@@ -36,9 +36,10 @@ clc;
     % Sampling rate of the eeg vector.
     DEF_a7.standard_sampleRate = 100;
     % Sleep stage considered in the baseline.  
-    % Set to [2, 3] to consider stage 2 and 3 as baseline, [2] for just stage 2 etc.
+    % Set to ['N2', 'N3'] to consider stage 'N2' and 'N3'  as baseline, 
+    % ['2'] for just stage '2' etc.
     % Note that the stage units must match what is found in the
-    % sleepStaging input file (sleepStaging.mat) (ie use '2', or 'N2' etc to
-    % match.)
-    DEF_a7.bslSleepStaging = [2];
+    % sleepStaging input file (sleepStaging.mat) 
+    % (ie use '2', or 'N2' if '2' or 'N2' is used etc.)
+    DEF_a7.bslSleepStaging = ['N2'];
 

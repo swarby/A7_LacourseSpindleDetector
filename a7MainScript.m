@@ -75,45 +75,43 @@ initA7_DEF;
     DEF_a7.sigCorr_Th   = 0.69; % sigmaCorr (correlation of sigma signal)
     
 % Spindle definition
-    DEF_a7.minDurSpindleSec = 0.3; % minimum duration of spindle
-    DEF_a7.maxDurSpindleSec = 2.5; % maximum duration of spindle
+    DEF_a7.minDurSpindleSec = 0.3; % minimum duration of spindle in sec
+    DEF_a7.maxDurSpindleSec = 2.5; % maximum duration of spindle in sec
 
-% Slow ratio definition (Context Classifier)   
-    % Slow ratio definition
+% Context Classifier definition (Slow ratio)   
+    % Slow ratio filter
     DEF_a7.lowFreqLow   = 0.5; % frequency band of delta + theta
     DEF_a7.lowFreqHigh  = 8;   % frequency band of delta + theta
     DEF_a7.highFreqLow  = 16;  % frequency band of beta
     DEF_a7.highFreqHigh = 30;  % frequency band of beta.
-    % Slow ratio threshold
+    % Detection In Context
+    DEF_a7.inContOn     = 1;   % context classifier On/Off - 1/0
     DEF_a7.slowRat_Th   = 0.9; % slow ratio threshold for the spindle spectral context
     
 % Sigma filter definition
-    DEF_a7.sigmaFreqLow  = 11.0;   % sigma frequency band
-    DEF_a7.sigmaFreqHigh = 16.0;   % sigma frequency band
+    DEF_a7.sigmaFreqLow  = 11.0;   % sigma frequency band low
+    DEF_a7.sigmaFreqHigh = 16.0;   % sigma frequency band high
     DEF_a7.fOrder        = 20.0;   % filter order for the sigma band
     
-% Frequency band definitions
-    DEF_a7.sigmaPSDFreqLow  = 11;  % frequency band of the sigma to be sure that the previous value of 11 Hz is taken
-    DEF_a7.sigmaPSDFreqHigh = 16;  % frequency band of the sigma to be sure that the next value of 16 Hz is taken
+% Broad band filter definition
     DEF_a7.totalFreqLow     = 4.5; % frequency band of the broad band
     DEF_a7.totalFreqHigh    = 30;  % frequency band of the broad band
     
-% Sliding window definitions
+% Sliding windows definition
     % A7 threshold window
-    DEF_a7.absWindLength    = 0.3;  % window length in sample for absSigPow and sigmaCov
-    DEF_a7.absWindStep      = 0.1;  % window step in sample for absSigPow and sigmaCov
+    DEF_a7.absWindLength    = 0.3;  % window length in sec for absSigPow and sigmaCov
+    DEF_a7.absWindStep      = 0.1;  % window step in sec for absSigPow and sigmaCov
     DEF_a7.relWindLength    = 0.3;  % window length in sec for sigmaCorr
     DEF_a7.relWindStep      = 0.1;  % window step in sec for sigmaCorr
     % PSA window
     DEF_a7.PSAWindLength    = 0.3;  % window length in sec for PSA
     DEF_a7.PSAZWindLength   = 2;    % window length with zero pad in sec for PSA
     DEF_a7.PSAWindStep      = 0.1;  % window step in sec for PSA
-    DEF_a7.BSLLengthSec     = 30;   % length of the baseline in sec   
     % Spindle detection window
-    DEF_a7.winLengthSec     = 0.3;  % window length in second
-    DEF_a7.WinStepSec       = 0.1;  % window step in second
-    DEF_a7.ZeroPadSec       = 2;    % zero padding length in second  
-    DEF_a7.minSecBwtSpindle = 0.0;  % Minimum distance between spindle
+    DEF_a7.winLengthSec     = 0.3;  % window length in sec
+    DEF_a7.WinStepSec       = 0.1;  % window step in sec
+    DEF_a7.ZeroPadSec       = 2;    % zero padding length in sec
+    % Window definition
     DEF_a7.bslLengthSec     = 30;   % baseline length to compute the z-score of rSigPow and sigmaCov
     
 % Parameter settings
@@ -180,7 +178,7 @@ initA7_DEF;
 % Section 2.1 Detect spindles in the signal
 %--------------------------------------------------------------------------
     % make sure all input vectors are the same size
-    if isequal(size(artifactVect),size(eeg_C3A2),size(sleepStageVect))
+    if isequal(length(artifactVect),length(eeg_C3A2),length(sleepStageVect))
         [detVect, detInfoTS, NREMClass, outputFile] = ...
             a7SpindleDetection(eeg_C3A2, sleepStageVect, ...
             artifactVect, DEF_a7);

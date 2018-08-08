@@ -15,7 +15,7 @@ function [relSigmaDistVect, PSDLowFreq, PSDHighFreq] = ...
 %       DEF_a7.PSAWindLength       = 0.5;    % window length in sec for PSA
 %       DEF_a7.PSAZWindLength      = 2;      % window length with zero pad in sec for PSA
 %       DEF_a7.PSAWindStep         = 0.1;    % window step in sec for PSA
-%       DEF_a7.BSLLengthSec        = 30;     % length of the baseline in sec
+%       DEF_a7.bslLengthSec        = 30;     % length of the baseline in sec
 %       DEF_a7.standard_sampleRate = 100     % sampleRate of the timeseries data, needed for the calcPSD.
 %       DEF_a7.relSigPow_Th                  % relative sigma power threshold
 %   
@@ -64,8 +64,8 @@ end
     nPSDWindow = size(PSD,1);
 
     % Find the index of the frequency band in the frequency bins of the PSD
-    [ iFreqStart, iFreqStop ] = findFreqIndex( DEF_a7.sigmaPSDFreqLow, ...
-        DEF_a7.sigmaPSDFreqHigh,  freqBins );
+    [ iFreqStart, iFreqStop ] = findFreqIndex( DEF_a7.sigmaFreqLow, ...
+        DEF_a7.sigmaFreqHigh,  freqBins );
     if iFreqStart == iFreqStop
         error(['The frequency band to compute the relative sigma band is excluded',...
             'of the frequency bins of the PSD']);
@@ -92,6 +92,7 @@ end
 % Extract energy in low band and high band in order to turn off
 % detection outside n2-3-4
 %----------------------------------------------------------------------
+if DEF_a7.inContOn == 1
     % Find the index of the frequency band in the frequency bins of the PSD
     % band of delta + theta
     [ iFreqStart, iFreqStop ] = findFreqIndex( DEF_a7.lowFreqLow, ...
@@ -109,7 +110,10 @@ end
             'of the frequency bins of the PSD']);
     end
     PSDHighFreq         = sum(PSD(:,iFreqStart:iFreqStop),2);
-    
+else
+    PSDLowFreq  = [];
+    PSDHighFreq = [];
+end
 
 %-------------------------------------------------------------------------
 %% Compute the treshold based on the BSL for each relSigmaPow
@@ -135,7 +139,7 @@ end
     % a clean baseline (ex. BLS length is 3 mins and PSD window is 2 sec, then
     % we need 45 clean PSD windows to create a clean baseline)
     iAvailable          = find(validSampleByPSDWin==1);
-    nFFTWinInBSL        = round(DEF_a7.BSLLengthSec/DEF_a7.PSAWindStep);
+    nFFTWinInBSL        = round(DEF_a7.bslLengthSec/DEF_a7.PSAWindStep);
 
     % If there is less valid windows than the number required to compute the
     % baseline (then there less valid windows than 3 mins in the whole

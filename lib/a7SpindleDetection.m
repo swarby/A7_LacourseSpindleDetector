@@ -42,7 +42,6 @@ function [detVect, detInfoTS, NREMClass, outputFile] = ...
 % Author      : Karine Lacourse 2016-08-12
 % Arrangement : Jacques Delfrate 2018-02-13
 %-------------------------------------------------------------------------
-
     nDetecInfo  = 1; 
     detInfoTS   = zeros(nDetecInfo,length(timeSeries));
 
@@ -51,62 +50,75 @@ function [detVect, detInfoTS, NREMClass, outputFile] = ...
     if isempty(DEF_a7.bslSleepStaging)
         validSampleVect = ones(size(timeSeries));
     else
+        % convert sleepStageVect from char to cell
+        sleepStageVect = cellstr(sleepStageVect);
         % keep TS in order
         validSampleVect = ismember(sleepStageVect, DEF_a7.bslSleepStaging);
     end
-    % Take only samples without any artifact
-    validSampleVect = (validSampleVect & artifactDetectVector==0);
-    nValidSec       = floor(sum(validSampleVect)/DEF_a7.standard_sampleRate)-DEF_a7.relWindLength;
-    nValidWindows   = nValidSec/DEF_a7.relWindStep;
-    nWinInBSL       = ceil((DEF_a7.BSLLengthSec-DEF_a7.relWindLength) / DEF_a7.relWindStep);
     
-    % warning check
-    if nValidWindows < nWinInBSL
-        warning('Bsl empty because there is only %i valid windows and we need %i',...
-            nValidWindows, DEF_a7.BSLLengthSec);
-    end
+    % check baseline sleep stage exist
+    if unique(validSampleVect) == 0
+        warning('Bsl sleep staging does not exist. No spindle detected');
+        
+        detVect    = [];
+        detInfoTS  = [];
+        NREMClass  = [];
+        outputFile = [];        
+    else
+        % Take only samples without any artifact
+        validSampleVect = (validSampleVect & artifactDetectVector==0);
+        nValidSec       = floor(sum(validSampleVect)/DEF_a7.standard_sampleRate)-DEF_a7.relWindLength;
+        nValidWindows   = nValidSec/DEF_a7.relWindStep;
+        nWinInBSL       = ceil((DEF_a7.bslLengthSec-DEF_a7.relWindLength) / DEF_a7.relWindStep);
 
-    %% Compute detection info based on the absolute sigma power
-    absSigmaPow    = a7subAbsPowValues(timeSeries, DEF_a7);
-    % Output to evaluate the threshold
-    detInfoTS(1,:) = log10(absSigmaPow);
-
-    %% Compute detection info based on the relative sigma power
-        % relative Sigma Power is converted into z-score
-        [relSigPow, PSDLowFreq, PSDHighFreq] = ...
-            a7subRelSigPow(timeSeries, validSampleVect, DEF_a7);
-        if ~isempty(relSigPow)
-            % Output to evaluate the threshold
-            detInfoTS(2,:) = relSigPow;
-            detInfoTS(5,:) = artifactDetectVector; 
+        % warning checkdetInfoTS
+        if nValidWindows < nWinInBSL
+            warning('Bsl empty because there is only %i valid windows and we need %i',...
+                nValidWindows, DEF_a7.bslLengthSec);
         end
 
-    if ~isempty(relSigPow)
-    %% Compute the detection info based on the sigma covariance
-        sigmaCovDistInfoTS = a7subSigmaCov(timeSeries, ...
-            validSampleVect, DEF_a7);
+        %% Compute detection info based on the absolute sigma power
+        absSigmaPow    = a7subAbsPowValues(timeSeries, DEF_a7);
         % Output to evaluate the threshold
-        detInfoTS(3,:)     = sigmaCovDistInfoTS;
+        detInfoTS(1,:) = log10(absSigmaPow);
 
-    %% Compute the detection info based on the sigma correlation
-        sigmaCorrInfoTS = a7subSigmaCorr(timeSeries, DEF_a7);
-        % Output to evaluate the threshold
-        detInfoTS(4,:)  = sigmaCorrInfoTS; 
+        %% Compute detection info based on the relative sigma power
+            % relative Sigma Power is converted into z-score
+            [relSigPow, PSDLowFreq, PSDHighFreq] = ...
+                a7subRelSigPow(timeSeries, validSampleVect, DEF_a7);
+            if ~isempty(relSigPow)
+                % Output to evaluate the threshold
+                detInfoTS(2,:) = relSigPow;
+                detInfoTS(5,:) = artifactDetectVector; 
+            end
 
-    %% Combine detection
-    % Detect spindles based on the 4 parameters and a7 features definition 
-    [detVect, slowRInfoTS, NREMClass] = a7subDetWithIntv4feat(...
-            detInfoTS, DEF_a7, artifactDetectVector, PSDLowFreq, PSDHighFreq);
-    % slow ratio output    
-    detInfoTS(6,:) = slowRInfoTS;
-    detInfoTS      = detInfoTS';
-    NREMClass  = cell2mat(NREMClass);
-    outputFile = organiseOutputTxtFile(detVect, NREMClass, ...
-        sleepStageVect, DEF_a7);
-    else
-        detVect = [];
-        detInfoTS = [];
-        NREMClass = [];
+        if ~isempty(relSigPow)
+        %% Compute the detection info based on the sigma covariance
+            sigmaCovDistInfoTS = a7subSigmaCov(timeSeries, ...
+                validSampleVect, DEF_a7);
+            % Output to evaluate the threshold
+            detInfoTS(3,:)     = sigmaCovDistInfoTS;
+
+        %% Compute the detection info based on the sigma correlation
+            sigmaCorrInfoTS = a7subSigmaCorr(timeSeries, DEF_a7);
+            % Output to evaluate the threshold
+            detInfoTS(4,:)  = sigmaCorrInfoTS; 
+
+        %% Combine detection
+        % Detect spindles based on the 4 parameters and a7 features definition 
+        [detVect, slowRInfoTS, NREMClass] = a7subDetWithIntv4feat(...
+                detInfoTS, DEF_a7, artifactDetectVector, PSDLowFreq, PSDHighFreq);
+        
+        %% Output data
+        [detInfoTS, outputFile] = organiseOutputTxtFile(detVect, NREMClass, ...
+            sleepStageVect, DEF_a7, slowRInfoTS, detInfoTS);
+    
+        else
+            detVect    = [];
+            detInfoTS  = [];
+            NREMClass  = [];
+            outputFile = [];
+        end
     end
 end
 
