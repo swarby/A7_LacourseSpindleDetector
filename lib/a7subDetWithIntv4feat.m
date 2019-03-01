@@ -7,36 +7,25 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
 % detections are removed.
 %
 % Input
-%   - detInfoTS : matrix [nFeatures x nSamples] of the detection features
-%   - absSigmaThresh : thresholds vector for abs sigma power [1 x nInterval of confidence]
-%   - relSigmaThresh : thresholds vector for rel sigma power [1 x nInterval of confidence]
-%   - sigmaCovThresh : thresholds vector for sigma covariance [1 x nInterval of confidence]
-%   - sigmaCorrThresh : thresholds vector for sigma correlation [1 x nInterval of confidence]
-%   - DEF_a7.standard_sampleRate : sampling rate of the time series where the spindles
-%                       are detected (double)
+%   - detInfoTS            : matrix [nSamples x nFeatures] of the detection features
+%   - DEF_a7               : structure of a7 detection settings
+%       - absSigPow_Th      : thresholds vector for abs sigma power
+%       - relSigPow_Th      : thresholds vector for rel sigma power
+%       - sigCov_Th         : thresholds vector for sigma covariance
+%       - sigCorr_Th        : thresholds vector for sigma correlation
 %   - artifactDetectVector : vector of artifact in sample (tall vector)
-%               (1:artifact;  0:valid)
-%   - PSDLowFreq - tall vector of the energy in the low band of the slow ratio
-%               [nPSDWindow x 1] (info in PSA window, not in sample)
-%   - PSDHighFreq - tall vector of the energy in the high band of the slow ratio
-%               [nPSDWindow x 1] (info in PSA window, not in sample)
-%   - maxSpindleLengthSec : maximum length of the detected spindle in
-%                           second (double)
-%   - minSpindleLengthSec : minimum length of the detected spindle in
-%                           second (double)
-%   - minSpindleStepSec2Merge : minimum step in sec between 2 detections
-%    (if the step is <= minSpindleStepSec2Merge, detections are merged into 1)
-%   - eventName : spindle detector name (string)
-%   - (optional) subjectID : string of the subjectID (only to write warnings)
-%   - (optional) warningsDir : string of the path + folder name where to save
-%                           the file warnings.  
+%                            (1:artifact;  0:valid)
+%   - PSDLowFreq           : tall vector of the energy in the low band of the slow ratio
+%                            [nPSDWindow x 1] (info in PSA window, not in sample)
+%   - PSDHighFreq          : tall vector of the energy in the high band of the slow ratio
+%                            [nPSDWindow x 1] (info in PSA window, not in sample)
+%
 % Output 
-%   - detectionVectFix : matrix [ nSamples x nInterval of confidence ] of the detection
+%   - detectionVectFix : tall vector [ nSamples ] of the detection
 %   - slowRInfoTS - slow ratio information vector (same number of datapoints as
 %                   input dataVector)
-%   - NREMClass : cell of nInterval of confidence 
-%               each cell is a logical tall vector (0: means not "IN" the NREM spectral context)
-%               of the number of events detected
+%   - NREMClass : tall vector of the number of events detected
+%               (0: means not "IN" the NREM spectral context)
 %
 % Author : Karine Lacourse, 
 % Date : 2017-01-04
@@ -63,100 +52,73 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
     %----------------------------------------------------------------------
     % Script
     %----------------------------------------------------------------------
-    nIntervals      = length(absSigmaThresh);
-    nSamples        = length(detInfoTS(1,:));
-    
-    % verification
-    if length(relSigmaThresh)~= nIntervals
-       error('We expect %i interval for the threshold relSigmaThresh'); 
-    end
-    if length(sigmaCovThresh)~= nIntervals
-       error('We expect %i interval for the threshold sigmaCovThresh'); 
-    end
-    if length(sigmaCorrThresh)~= nIntervals
-       error('We expect %i interval for the threshold sigmaCorrThresh'); 
-    end
-    
-    % Detection depending of the interval of confidence
-    % Pre-allocate the output
-    detectionVectFix = zeros(nSamples,nIntervals);
-    NREMClass = cell(nIntervals,1);
-    for iInterval = 1 : nIntervals
-        
-        %------------------------------------------------------------------
-        %% Find possible spindle depending of the interval of confidence
-        %------------------------------------------------------------------
-        possSpindleAbsSig   = detInfoTS(1,:) > absSigmaThresh(iInterval);
-        possSpindleRelSig   = detInfoTS(2,:) > relSigmaThresh(iInterval);
-        possSpindleSigCov   = detInfoTS(3,:) > sigmaCovThresh(iInterval);
-        possSpindleSigCorr  = detInfoTS(4,:) > sigmaCorrThresh(iInterval);
+    nSamples        = length(detInfoTS(:,1));
+       
+    %------------------------------------------------------------------
+    %% Find possible spindle
+    %------------------------------------------------------------------
+    possSpindleAbsSig   = detInfoTS(:,1) > absSigmaThresh;
+    possSpindleRelSig   = detInfoTS(:,2) > relSigmaThresh;
+    possSpindleSigCov   = detInfoTS(:,3) > sigmaCovThresh;
+    possSpindleSigCorr  = detInfoTS(:,4) > sigmaCorrThresh;
 
-        possSpindle  = possSpindleSigCorr & possSpindleSigCov & ...
-            possSpindleAbsSig & possSpindleRelSig;
-        
-        % Possible spindles are turn off if there is an artifact during the
-        % detection of a spindle
-        possSpindle = possSpindle & ~artifactDetectVector';
-        
-%         % Keep track of IN or OUT the NREM spectral context
-%         if ~isempty(PSDLowFreq)
-%             [~, slowRValidTS, slowRInfoTS] = ...
-%                 a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, PSDHighFreq,...
-%                  artifactDetectVector, DEF_a7);
-%         else
-%             slowRInfoTS  = [];
-%             slowRValidTS = zeros(1,length(artifactDetectVector));
-%         end
+    possSpindle  = possSpindleSigCorr & possSpindleSigCov & ...
+        possSpindleAbsSig & possSpindleRelSig;
 
-        % Fixed the length of the spindle based on absSigmaPow and sigmaCov
-        % Create a list of events
-        [startEventSmp, endsEventSmp, ~] = event_StartsEndsDurations(possSpindle); 
-        
-        % Create the vector for possible length
-        possLength = possSpindleAbsSig & possSpindleSigCov;      
-        
-        % For every events extend the length based on the absolute features
-        for iEvt = 1 : length(startEventSmp)
-            
-            % Adjust the start of the detection
-            i = 1;
-            % While the asbSigma overcomes the threshold the start of the 
-            % detection is extended 
-            % (check to not ask for possSpindleAbsSig(0))
-            while ( (startEventSmp(iEvt)-1 > 0) && ...
-                    (possLength(startEventSmp(iEvt)-1)==1) )
-                startEventSmp(iEvt) = startEventSmp(iEvt)-1;
-                i = i +1;
-            end
-            
-            % Adjust the end of the detection
-            i = 1;
-            % While the asbSigma overcomes the threshold the end of the 
-            % detection is extended
-            % (check to not ask for possSpindleAbsSig outside the matrix)
-            while (endsEventSmp(iEvt) < length(possLength)) &&...
-                    (possLength(endsEventSmp(iEvt)+1)==1)
-                endsEventSmp(iEvt) = endsEventSmp(iEvt)+1;  
-                i = i +1;                
-            end
-            
-        end    
-        
-        % Remove any duplicated spindles
-        eventListStartEnd = [startEventSmp, endsEventSmp];
-        eventListStartEndUnique = unique(eventListStartEnd,'rows');
-        startEventSmp = eventListStartEndUnique(:,1); 
-        endsEventSmp = eventListStartEndUnique(:,2); 
-            
-        % Create duration in sample tab
-        durationsEventSmp = endsEventSmp - startEventSmp + 1;
+    % Possible spindles are turn off if there is an artifact during the
+    % detection of a spindle    
+    if DEF_a7.spindleNoArt==1
+        possSpindle = possSpindle & ~artifactDetectVector;
+    end 
 
-        % If there is at least one event
-        if ~isempty(startEventSmp)
-        
-            %--------------------------------------------------------------
-            %% Fix spindle list by merging any too close spinldles
-            %--------------------------------------------------------------
+    % Fixed the length of the spindle based on absSigmaPow and sigmaCov
+    % Create a list of events
+    [startEventSmp, endsEventSmp, ~] = event_StartsEndsDurations(possSpindle); 
+
+    % Create the vector for possible length
+    possLength = possSpindleAbsSig & possSpindleSigCov;      
+
+    % For every events extend the length based on the absolute features
+    for iEvt = 1 : length(startEventSmp)
+
+        % Adjust the start of the detection
+        i = 1;
+        % While the asbSigma overcomes the threshold the start of the 
+        % detection is extended 
+        % (check to not ask for possSpindleAbsSig(0))
+        while ( (startEventSmp(iEvt)-1 > 0) && ...
+                (possLength(startEventSmp(iEvt)-1)==1) )
+            startEventSmp(iEvt) = startEventSmp(iEvt)-1;
+            i = i +1;
+        end
+
+        % Adjust the end of the detection
+        i = 1;
+        % While the asbSigma overcomes the threshold the end of the 
+        % detection is extended
+        % (check to not ask for possSpindleAbsSig outside the matrix)
+        while (endsEventSmp(iEvt) < length(possLength)) &&...
+                (possLength(endsEventSmp(iEvt)+1)==1)
+            endsEventSmp(iEvt) = endsEventSmp(iEvt)+1;  
+            i = i +1;                
+        end
+
+    end    
+
+    % Remove any duplicated spindles
+    eventListStartEnd = [startEventSmp, endsEventSmp];
+    eventListStartEndUnique = unique(eventListStartEnd,'rows');
+    startEventSmp = eventListStartEndUnique(:,1); 
+    endsEventSmp = eventListStartEndUnique(:,2); 
+
+    % Create duration in sample tab
+    durationsEventSmp = endsEventSmp - startEventSmp + 1;
+
+    % If there is at least one event
+    if ~isempty(startEventSmp)
+
+        if minSpindleStepSec2Merge>0
+            % Fix spindle list by merging any too close spinldles
             eventLst2Merge  = ((startEventSmp(2:end) - endsEventSmp(1:end-1))...
                 / DEF_a7.standard_sampleRate) <= minSpindleStepSec2Merge;
             % Add an event at the end to analyze all the set of events
@@ -174,7 +136,7 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
                         durSecSecEvt2merge < minSpindleLengthSec )
                     eventLst2Merge(iEventLst2Merge(iEvt2Merge))=1;
                     fprintf('event %i : 2 spindles are merged\n\n', ...
-			iEvt2Merge);
+            iEvt2Merge);
                 else
                     eventLst2Merge(iEventLst2Merge(iEvt2Merge))=0;
                 end
@@ -213,62 +175,66 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
                     updateEnd = 1; % It is not more the first event of a merge of events    
                 end
             end
-
-            %------------------------------------------------------------------
-            %% Fix spindle list by removing too short spindle
-            %------------------------------------------------------------------
-            iSS2Keep = find(durationsEventSmpMerge >= (minSpindleLengthSec * DEF_a7.standard_sampleRate));
-            startsEventSmpFixLength = startEventSmpMerge(iSS2Keep);
-            endsEventSmpFixLength   = endsEventSmpMerge(iSS2Keep);
-            durEventSmpFixLength    = durationsEventSmpMerge(iSS2Keep);
-
-            %------------------------------------------------------------------
-            %% Fix spindle list by removing too long spindle
-            %------------------------------------------------------------------
-            iSS2Keep = find(durEventSmpFixLength <= (maxSpindleLengthSec * DEF_a7.standard_sampleRate));
-            startsEventSmpFixLength = startsEventSmpFixLength(iSS2Keep);
-            endsEventSmpFixLength   = endsEventSmpFixLength(iSS2Keep); 
-            
-            % Write a warning if no spindle is found
-            if isempty(startsEventSmpFixLength)
-                warning('No spindles detected');   
-            end
-            
-            % Go back to the detection vector in order to evaluate performance
-            detectionVectFixTmp = eventSmpList2DetectVect( [...
-                startsEventSmpFixLength,endsEventSmpFixLength], size(detInfoTS,2) );
-
-            % Create the set of detection for each interval of confidence
-            detectionVectFix(:,iInterval) = detectionVectFixTmp;
-            
-            %------------------------------------------------------------------
-            %% Spindle context classifier
-            %------------------------------------------------------------------        
-            % if PSDLowFreq empty --> context classifier Off
-            if ~isempty(PSDLowFreq)
-                % Keep track of IN or OUT the NREM spectral context
-                [~, slowRValidTS, slowRInfoTS] = ...
-                    a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, ...
-                    PSDHighFreq, artifactDetectVector, DEF_a7);
-                % Verify for each detection the NREM classifier flag
-                for iEvt = 1 : length(startsEventSmpFixLength)
-                    % The context is considered "IN" if at least one sample of
-                    % the spindle is "IN" the NREM spectral context
-                    NREMClass{iInterval}(iEvt,1) = any( slowRValidTS(startsEventSmpFixLength(iEvt) ...
-                        : endsEventSmpFixLength(iEvt)));
-                end             
-            else
-                slowRInfoTS  = [];
-            end            
-            
-            
         else
-            % No detections possible
-            detectionVectFix(:,iInterval) = zeros(nSamples,1);
-            % Write a warning if no spindle is found
-            warning('No spindles detected');        
+            startEventSmpMerge = startEventSmp;
+            endsEventSmpMerge = endsEventSmp;
+            durationsEventSmpMerge = durationsEventSmp;
         end
+
+        %------------------------------------------------------------------
+        %% Fix spindle list by removing too short spindle
+        %------------------------------------------------------------------
+        iSS2Keep = find(durationsEventSmpMerge >= (minSpindleLengthSec * DEF_a7.standard_sampleRate));
+        startsEventSmpFixLength = startEventSmpMerge(iSS2Keep);
+        endsEventSmpFixLength   = endsEventSmpMerge(iSS2Keep);
+        durEventSmpFixLength    = durationsEventSmpMerge(iSS2Keep);
+
+        %------------------------------------------------------------------
+        %% Fix spindle list by removing too long spindle
+        %------------------------------------------------------------------
+        iSS2Keep = find(durEventSmpFixLength <= (maxSpindleLengthSec * DEF_a7.standard_sampleRate));
+        startsEventSmpFixLength = startsEventSmpFixLength(iSS2Keep);
+        endsEventSmpFixLength   = endsEventSmpFixLength(iSS2Keep); 
+
+        % Write a warning if no spindle is found
+        if isempty(startsEventSmpFixLength)
+            warning('No spindles detected');   
+        end
+
+        % Go back to the detection vector in order to evaluate performance
+        detectionVectFix = eventSmpList2DetectVect( [...
+            startsEventSmpFixLength,endsEventSmpFixLength], size(detInfoTS,1) );
+
+        %------------------------------------------------------------------
+        %% Spindle context classifier
+        %------------------------------------------------------------------        
+        % if PSDLowFreq empty --> context classifier Off
+        if ~isempty(PSDLowFreq)
+            % Keep track of IN or OUT the NREM spectral context
+            [~, slowRValidTS, slowRInfoTS] = ...
+                a7subTurnOffDetSlowRatio(possSpindle, PSDLowFreq, ...
+                PSDHighFreq, artifactDetectVector, DEF_a7);
+            % Verify for each detection the NREM classifier flag
+            NREMClass = zeros(length(startsEventSmpFixLength),1);
+            for iEvt = 1 : length(startsEventSmpFixLength)
+                % The context is considered "IN" if at least one sample of
+                % the spindle is "IN" the NREM spectral context
+                NREMClass(iEvt,1) = any( slowRValidTS(startsEventSmpFixLength(iEvt) ...
+                    : endsEventSmpFixLength(iEvt)));
+            end             
+        else
+            slowRInfoTS  = [];
+        end            
+
+
+    else
+        % No detections possible
+        detectionVectFix = zeros(nSamples,1);
+        slowRInfoTS  = [];
+        % Write a warning if no spindle is found
+        warning('No spindles detected');        
     end
+
 
 end
 

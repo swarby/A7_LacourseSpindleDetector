@@ -7,26 +7,15 @@ function [sigmaCorrInfoTS] = a7subSigmaCorr(timeSeries, DEF_a7)
 %   then we threshold on the positive part ex) 0.7 or 70%.
 %
 % Input
-%   dataVector      - input timeseries, detector will run on this data.
-%   DEF_a7.standard_sampleRate      - DEF_a7.standard_sampleRate of the timeseries data, needed for the calcPSD.
-%   validSampleVect - selection vector of samples to show the BSL histogram
-%   channelName     - name of the input channel; transferred to the EVENTS output.
-%   DEF_a7 - DEF option for the a7 spindle
-%       DEF_a7.corrThresh      = 40;   % percentage of correlation threshold 
-%                                      % of the sigma correlation over the raw signal 
-%       DEF_a7.relWindLength   = 0.5;    % window length in sec for sigmaCorr
-%       DEF_a7.relWindStep     = 0.1;    % window step in sec for sigmaCorr
-%       DEF_a7.sigmaFreqHigh   = 16;   % frequency band of the broad band
-%       DEF_a7.sigmaFreqLow    = 11;   % frequency band of the sigma
+%   timeSeries  : input timeseries, detector will run on this data.
+%   DEF_a7      : structure of a7 detection settings
 %   
 % Output
-%   sigmaCorrInfoTS - vector of the information used to detect, same number of datapoints as input dataVector.
+%   sigmaCorrInfoTS : vector of the information used to detect, same number of datapoints as input dataVector.
 
 %
 % Requirements
 %   event_StartsEndsDurations.m
-% 
-% Notes : no minimum or maximum length applied on the detections
 %
 % Authors
 % Karine Lacourse  2016-08-08
@@ -45,20 +34,16 @@ function [sigmaCorrInfoTS] = a7subSigmaCorr(timeSeries, DEF_a7)
     
     % Total length of the timeseries; in seconds
     dataLength_sec = length(timeSeries)/DEF_a7.standard_sampleRate ;   
-    % Number of complete windows based on the length and step in sec.
-    % nWindows = floor((dataLength_sec-DEF_a7.absWindLength)/DEF_a7.absWindStep)+1;  
     % Number of windows (the maximum number of step windows, at least half)
-    nWindows = round(dataLength_sec/DEF_a7.absWindStep);    
+    nWindows = round(dataLength_sec/DEF_a7.WinStepSec);    
     % Init the number of samples
     nTotSamples             = length(timeSeries);
-    
-%     DEF_a7.filterOrderSigCorr             = 20; % The filter order
 
     % Filter out Delta from the signal
     if DEF_a7.removeDeltaFromRawSigCorr  ==1
         timeSeriesNDelta = butterFiltZPHighPassFiltFilt( ...
             timeSeries, DEF_a7.totalFreqLow, DEF_a7.standard_sampleRate, ... 
-            DEF_a7.filterOrderSigCorr);
+            DEF_a7.fOrder);
     else
         timeSeriesNDelta = timeSeries;
     end
@@ -66,16 +51,16 @@ function [sigmaCorrInfoTS] = a7subSigmaCorr(timeSeries, DEF_a7)
     % Filter the signal in the sigma band
     timeSeriesFilt  = butterFiltZPHighPassFiltFilt(...
         timeSeries, DEF_a7.sigmaFreqLow, DEF_a7.standard_sampleRate, ...
-        DEF_a7.filterOrderSigCorr);
+        DEF_a7.fOrder);
     timeSeriesFilt  = butterFiltZPLowPassFiltFilt(...
         timeSeriesFilt, DEF_a7.sigmaFreqHigh, DEF_a7.standard_sampleRate, ...
-        DEF_a7.filterOrderSigCorr);
+        DEF_a7.fOrder);
     
     % Shape the time series (vector of samples) into windows of samples
     tsRawPerWindow = samples2WindowsInSec( timeSeriesNDelta, nWindows, ...
-        DEF_a7.relWindLength, DEF_a7.relWindStep, DEF_a7.standard_sampleRate);
+        DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     tsSigmaPerWindow = samples2WindowsInSec( timeSeriesFilt, nWindows, ...
-        DEF_a7.relWindLength, DEF_a7.relWindStep, DEF_a7.standard_sampleRate);
+        DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     
     % Compute the correlation
     correlationWin = zeros(nWindows,1);
@@ -90,21 +75,22 @@ function [sigmaCorrInfoTS] = a7subSigmaCorr(timeSeries, DEF_a7)
     % Error check on missing window to have exactly the length of the
     % time series
     % The number of samples created by windows2Samples with nWindows
-    nSamplesFromWin = round(nWindows * DEF_a7.relWindStep*DEF_a7.standard_sampleRate + ...
-        (DEF_a7.relWindLength*DEF_a7.standard_sampleRate-DEF_a7.relWindStep*DEF_a7.standard_sampleRate));
+    nSamplesFromWin = round(nWindows * DEF_a7.WinStepSec*DEF_a7.standard_sampleRate + ...
+        (DEF_a7.winLengthSec*DEF_a7.standard_sampleRate-DEF_a7.WinStepSec*DEF_a7.standard_sampleRate));
     if nSamplesFromWin < length(timeSeries)
         correlationWin = [correlationWin;0];
     end      
     
     % Convert the correlation into a sample vector
-    correlationMat = windows2SamplesInSec( correlationWin, DEF_a7.relWindLength, ...
-        DEF_a7.relWindStep, DEF_a7.standard_sampleRate, nTotSamples );
+    correlationMat = windows2SamplesInSec( correlationWin, DEF_a7.winLengthSec, ...
+        DEF_a7.WinStepSec, DEF_a7.standard_sampleRate, nTotSamples );
     
     % Average all the corr from the overlapped windows
-    correlation = mean(correlationMat,'omitnan');
+    correlationTmp = mean(correlationMat,'omitnan');
+    correlationTmp = fillmissing(correlationTmp,'previous');
     
     % Output the detection information for analysis of the threshold
-    sigmaCorrInfoTS = correlation';    
+    sigmaCorrInfoTS = correlationTmp';    
    
 end
 

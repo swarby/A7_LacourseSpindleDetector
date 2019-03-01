@@ -1,3 +1,4 @@
+function cell2tab(filename, cellArray, permission)
 % cell2tab.m
 %
 % Purpose:
@@ -8,11 +9,9 @@
 % cell2tab(filename, cellArray, permission)
 % 
 % Variables:
-% filename     = Name of the file to save. [ i.e. 'text.txt' ]
-% cellArray    = Name of the cell to write
-% permission   = fopen permission 'w' is default (overwrite); change to 'a' for append
-%
-% Requirements:
+% filename     : Name of the file to save. [ i.e. 'text.txt' ]
+% cellArray    : Name of the cell to write
+% permission   : fopen permission 'w' is default (overwrite); change to 'a' for append
 %
 % Examples:
 % % append WORK.data cell to the text.txt file
@@ -26,7 +25,6 @@
 % Changelog:
 % 2014-04-17    Fixed tab delimited output; removed delimeter option
 
-function cell2tab(filename, cellArray, permission)
 
 if nargin<3
     permission = 'w';

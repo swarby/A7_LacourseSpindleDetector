@@ -7,13 +7,13 @@ function [output, errorMess] = butterFiltZPLowPassFiltFilt(input, Fpass, Fs, fil
 % and the non-linear phase is corrected by the filtfilt.
 %
 % Input: 
-%   input is an EEG timeseries, tall vector
-%   Fpass : cut off frequency (last frequency to pass)
-%   Fs : frequency sampling
-%   (optional) filterOrder : the order of the filter (default is 10)
+%   input       : EEG timeseries, tall vector
+%   Fpass       : cut off frequency (last frequency to pass)
+%   Fs          : frequency sampling
+%   filterOrder : (optional) the order of the filter (default is 10)
 %
 % Output:
-%   output : the filtered EEG signal, tall vector.
+%   output    : the filtered EEG signal, tall vector.
 %   errorMess : cell of string, empty if everyting is ok
 %
 % Author     : Simon Warby      2014-04-30 

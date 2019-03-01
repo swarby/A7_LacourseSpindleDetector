@@ -9,19 +9,12 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
 %   for each window (stop = start + window lentgh in samples).  
 %
 % Input 
-%   timeSeries      - input timeseries, detector will run on this data.
-%   DEF_a7.standard_sampleRate      - DEF_a7.standard_sampleRate of the timeseries data.
-%   validSampleVect - selection vector of samples to compute the BSL
-%   channelName     - name of the input channel; transferred to the EVENTS output.
-%   DEF_a7 - DEF option for the a7 spindle
-%       DEF_a7.absWindLength  = 0.3;   % window length in sec for absSigPow and sigmaCov
-%       DEF_a7.absWindStep    = 0.1;   % window step in sec for absSigPow and sigmaCov                              
-%       DEF_a7.covThresh      = 40;    % threshold of the z-score of the log10 of the covariance
-%       DEF_a7.sigmaFreqHigh  = 16;    % frequency band of the broad band
-%       DEF_a7.sigmaFreqLow   = 11;    % frequency band of the sigma
+%   timeSeries      : input timeseries, detector will run on this data.
+%   validSampleVect : selection vector of samples to compute the BSL
+%   DEF_a7          : structure of a7 settings
 %   
 % Output
-%   sigmaCovDistInfoTS - vector of the information used to detect, same number of datapoints as input dataVector.
+%   sigmaCovDistInfoTS : vector of the information used to detect, same number of datapoints as input dataVector.
 % 
 % Requirement
 %   butterFiltZPHighPassFiltFilt.m
@@ -36,8 +29,8 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
     % ---------------------------- SCRIPT ---------------------------------
     % Total length of the timeseries; in seconds
     dataLength_sec = length(timeSeries)/DEF_a7.standard_sampleRate ;   
-    % Number of windows (the maximum number of step windows, at least half)
-    nWindows = round(dataLength_sec/DEF_a7.absWindStep);
+    % Number of windows (complete windows)
+    nWindows = floor( (dataLength_sec-DEF_a7.winLengthSec)/DEF_a7.WinStepSec) + 1;
     
     %----------------------------------------------------------------------
     %% Filter out Delta from the signal
@@ -65,9 +58,9 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
     %----------------------------------------------------------------------
     % Shape the time series (vector of samples) into windows of samples
     tsRawPerWindow = samples2WindowsInSec( timeSeriesNDelta, nWindows, ...
-        DEF_a7.absWindLength, DEF_a7.absWindStep, DEF_a7.standard_sampleRate);
+        DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     tsSigmaPerWindow = samples2WindowsInSec( timeSeriesFilt, nWindows, ...
-        DEF_a7.absWindLength, DEF_a7.absWindStep, DEF_a7.standard_sampleRate);
+        DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     
     covarianceWin = zeros(nWindows,1);
     % For each window
@@ -83,7 +76,7 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
     %----------------------------------------------------------------------
     % Shape the time series (vector of samples) into windows of samples
     invalidPerWin   = samples2WindowsInSec( ~validSampleVect, nWindows, ...
-        DEF_a7.absWindLength, DEF_a7.absWindStep, DEF_a7.standard_sampleRate); 
+        DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate); 
     covInvalidWin   = sum(invalidPerWin,2, 'omitnan');
     validByWin      = (covInvalidWin==0);
     
@@ -114,32 +107,25 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
     % a clean baseline (ex. BLS length is 30 sec and cov window step window is 0.1 sec, then
     % we need 300 clean cov windows to create a clean baseline)
     iAvailable      = find(validByWin==1);
-    nWinInBSL       = round(DEF_a7.bslLengthSec/DEF_a7.absWindStep);
-    
-    % If there is less valid windows than the number required to compute the
-    % baseline (then there less valid windows than 3 mins in the whole
-    % recording)
-    if nWinInBSL > length(iAvailable)
+    nWinInBSL       = floor( (DEF_a7.bslLengthSec-DEF_a7.winLengthSec) / DEF_a7.WinStepSec) +1;
+
+    % If there is no baseline
+    if isempty(iAvailable)
         sigmaCovDistInfoTS  = nan(nWindows,1);
-        % If there is the warningsDir input argument
-        if nargin == 6
-            % Output error in the warning directory
-        warning(['Bsl empty because there is only %i,'... 
-            'valid cov window and we need %i'], ...
-            length(iAvailable), nWinInBSL);
-        else
-            if  nargin > 4
-                % Output error in the command window
-                warning('%s : Bsl empty because there is only %i valid window and we need %i',...
-                   DEF_a7.eventNameSigmaCov, length(iAvailable), nWinInBSL);
-            else
-                % Output error in the command window
-                warning(['Spindle with cov : Bsl empty because there',...
-                    'is only %i valid windowa and we need %i'], length(iAvailable),...
-                    nWinInBSL);            
-            end
-        end
+        error('Spindle with cov : Bsl is empty, DEF_a7.bslLengthSec is set to %i sec, no detection possible',...
+            DEF_a7.bslLengthSec);            
     else
+       % If there is less valid windows than the number required to compute the
+        % baseline 
+        if nWinInBSL > length(iAvailable)
+            % Output error in the command window
+            warning(['Spindle with cov sliding windows: Bsl is too short ',...
+                'only %i sec valid and DEF_a7.bslLengthSec is set to %i sec'], ...
+                round((length(iAvailable)-1)*DEF_a7.WinStepSec+DEF_a7.winLengthSec),...
+                DEF_a7.bslLengthSec);  
+            nWinInBSL = length(iAvailable);
+            nWindows = length(iAvailable);
+        end
         % Inits
         total_threshold     = nan(nWindows,1);
         covTotal_SD         = nan(nWindows,1);
@@ -253,16 +239,17 @@ function [sigmaCovDistInfoTS] = a7subSigmaCov(timeSeries, ...
         % Error check on missing window to have exactly the length of the
         % time series
         % The number of samples created by windows2Samples with nWindows
-        nSamplesFromWin = round(nWindows * DEF_a7.absWindStep*DEF_a7.standard_sampleRate + ...
-            (DEF_a7.absWindLength*DEF_a7.standard_sampleRate-DEF_a7.absWindStep*DEF_a7.standard_sampleRate));
+        nSamplesFromWin = round(nWindows * DEF_a7.WinStepSec*DEF_a7.standard_sampleRate + ...
+            (DEF_a7.winLengthSec*DEF_a7.standard_sampleRate-DEF_a7.WinStepSec*DEF_a7.standard_sampleRate));
         if nSamplesFromWin < length(timeSeries)
             covDistWin = [covDistWin;0];
         end       
-        distWinMat = windows2SamplesInSec( covDistWin, DEF_a7.absWindLength, ...
-            DEF_a7.absWindStep, DEF_a7.standard_sampleRate, length(timeSeries) );            
+        distWinMat = windows2SamplesInSec( covDistWin, DEF_a7.winLengthSec, ...
+            DEF_a7.WinStepSec, DEF_a7.standard_sampleRate, length(timeSeries) );            
 
         % Average all the cov from the overlapped windows
         distWinMean     = mean(distWinMat,'omitnan');
+        distWinMean     = fillmissing(distWinMean,'previous');
 
         % Output the detection information for analysis of the threshold
         sigmaCovDistInfoTS   = distWinMean;

@@ -1,14 +1,16 @@
 # README #
 
+* Release Version 1.1
+
 ### What is this code for? ###
 
 This package is the A7 spindle detector algorithm that detects sleep spindles.  The A7 matlab function runs on one EEG channel at a time, but can be run on multiple EEG channels in parallel/serial for multichannel recordings.  All of the initial testing of the detector has been performed on C3-A2 in stage N2 sleep.
 
 Three vectors loaded into matlab are required for the A7 function: EEG timeseries vector, sleep stages vector and EEG signal artifact vector.  For convenience, we have provided an example input dataset that loads the three vectors from binary .mat files and exports the spindle detections to an output file.
 
-* Release Version 1.0
 The package has been developed on Linux 14.04 with MATLAB 9.1.0.441655 (R2016b).
 Note that this code may not run on previous versions of MATLAB.  For example, it does not work with R2012a due to changes to 'omitnan' flags for math functions (ie sum).
+
 
 ### What will I find in this code package? ###
 
@@ -19,8 +21,12 @@ This package is composed of a main script a7MainScript.m, a setting inita7_DEF.m
   * Example input : 
     * EEGvector.mat : 1 minute of broadband filtered EEG recording, sample-by-sample
     * sleepStaging.mat : sleep stages that match the EEG timeseries, sample-by-sample
-                         For example this vector can be coded as: 0 or wake, 1 or N1, 2 or N2, 3 or N3 and 5 or REM etc.
-			 Multiple sleep stages can be used as baseline by modifying the DEF_a7.bslSleepStaging variable. Variables in baseline should match the sleep stage vector.
+                         -For example this vector can be coded as: 0 or wake, 1 or N1, 2 or N2, 3 or N3 and 5 or REM etc.
+			 -This vector needs to be a cell of string, ex) 2 needs to be coded as a char '2'
+			 Multiple sleep stages can be used as baseline by modifying the DEF_a7.bslSleepStaging variable in initA7_DEF.m. 
+			 -If multiple sleep stages are defined use cell format. 
+			 -For example  DEF_a7.bslSleepStaging = {'N2','N3'}. 
+			 -Variables in baseline should match the sleep stage vector.
     * artifactVector.mat : binary vector with/without (1/0) artifact that matches sample-by-sample the EEG timeseries.
 
 * Output folder 
@@ -84,6 +90,23 @@ It is likely that you will want to filter the spindle detections in the results 
     any modifications are also freely distributed.
 
     When using this code or modifications of this code, please cite:
-        Lacourse K, Defrate J, Beaudry J, Peppard P, Warby SC. 2018. A sleep spindle 
-        detection algorithm that emulates human expert spindle scoring.  [Full citation 
-        to be determined].
+        Lacourse, K., Delfrate, J., Beaudry, J., Peppard, P. & Warby, S. C. 
+        A sleep spindle detection algorithm that emulates human expert spindle scoring. 
+        J. Neurosci. Methods (2018). doi:10.1016/j.jneumeth.2018.08.014
+
+### Change log: ###
+
+-rev1.1 -2019-02-21
+	Moved the option DEF_a7.inContOn (NREM classifier) into the initA7_DEF
+	Added the option DEF_a7.spindleNoArt to turn off spindle events that occur during an artifact
+	Clean-up of redundant A7 options
+	Supports sleep stage vector as cell of char or tab of char
+	Supports multiple sleep stages for the baseline specified as cell of char
+	Added a check for consistency in sleep stages baseline
+	Added printed messages
+	detInfoTS output is column wise
+	Windows used as baseline need to be complete (based on DEF_a7.bslLengthSec)
+	Removed any occurrence of interval of confidence, this feature no longer supported
+	
+
+

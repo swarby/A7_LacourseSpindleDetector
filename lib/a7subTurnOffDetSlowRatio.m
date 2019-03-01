@@ -5,27 +5,15 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
 %   be estimated through a spectral profile.
 %
 % Input: 
-%   possSpindle     - detection vector (double) of the length of the time
-%                       series which the a7 detector is run on.
-%                       1: means detection; 0: means no detection;
-%   PSDLowFreq      - tall vector of the energy in the low band of the slow ratio
-%                       [nPSDWindow x 1] (info in PSA window, not in sample)
-%   PSDHighFreq     - tall vector of the energy in the high band of the slow ratio
-%                       [nPSDWindow x 1] (info in PSA window, not in sample)
-%   DEF_a7.standard_sampleRate      - DEF_a7.standard_sampleRate of the timeseries data.
-%   artifactDetectVector - vector of artifact in sample (tall vector)
+%   possSpindle          : detection vector (double) of the length of the time
+%                          series which the a7 detector is run on.
+%   PSDLowFreq           : tall vector of the energy in the low band of the slow ratio
+%                          [nPSDWindow x 1] (info in PSA window, not in sample)
+%   PSDHighFreq          : tall vector of the energy in the high band of the slow ratio
+%                          [nPSDWindow x 1] (info in PSA window, not in sample)
+%   artifactDetectVector : vector of artifact in sample (tall vector)
 %                           (1:artifact;  0:valid)
-%   validSampleVect - selection vector of samples to compute the BSL
-%   DEF_a7 - DEF option for the a7 spindle
-%       DEF_a7.PSAWindLength  = 0.3;    % window length in sec for absSigPow and sigmaCov
-%       DEF_a7.PSAWindStep    = 0.1;    % window step in sec for absSigPow and sigmaCov
-%       DEF_a7.bslLengthSec   = 40;     % baseline length to estimate slow ratio
-%       DEF_a7.sigmaFreqHigh   = 16;    % frequency band of the broad band
-%       DEF_a7.sigmaFreqLow    = 11;    % frequency band of the sigma
-%   (optional) subjectID   - string of the subjectID (only to write warnings)
-%   (optional) warningsDir - string of the path + folder name where to save
-%                           the file warnings otherwise warnings are plot
-%                           in the command window.
+%   DEF_a7               : structure of a7 settings
 %   
 % Output:
 %   possSpindle - spindle detection vector (same number of datapoints as
@@ -49,7 +37,7 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
     dataLength_sec = length(possSpindle)/DEF_a7.standard_sampleRate ;   
     % Number of complete windows based on the length and step in sec.
     % The PSD is performed only on complete window
-    nWindows = floor((dataLength_sec-DEF_a7.PSAWindLength)/DEF_a7.PSAWindStep)+1;   
+    nWindows = floor((dataLength_sec- DEF_a7.winLengthSec)/DEF_a7.WinStepSec)+1;   
     % Init the number of samples
     nTotSamples         = length(possSpindle);    
     
@@ -67,7 +55,7 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
     %% Convert the valid sample vector per PSA window
     %----------------------------------------------------------------------
     invalidWin = samples2WindowsInSec( artifactDetectVector, nWindows, ...
-        DEF_a7.PSAWindLength, DEF_a7.PSAWindStep, DEF_a7.standard_sampleRate);
+         DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     invalidWin = sum(invalidWin,2);
     validByWin = (invalidWin==0);    
       
@@ -76,34 +64,38 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
     %----------------------------------------------------------------------
     
     % For each current window compute the index vector of the windows to take to create
-    % a clean baseline (ex. BLS length is 30 sec and cov window step window is 0.1 sec, then
-    % we need 300 clean cov windows to create a clean baseline)
+    % a clean baseline 
+    %   We consider only complete windows, window length should be considered
+    %   BLS length is 30 sec - the length of the window (0.3 sec) and the
+    %   rest can be splitted into window step window of 0.1 sec
+    
     iAvailable      = find(validByWin==1);
-    nWinInBSL       = round(DEF_a7.bslLengthSec/DEF_a7.PSAWindStep);
+    nWinInBSL       = floor( (DEF_a7.bslLengthSec-DEF_a7.winLengthSec)/DEF_a7.WinStepSec ) + 1;
     
     % If there is less valid windows than the number required to compute the
     % baseline (then there less valid windows than 3 mins in the whole
     % recording)
-    if nWinInBSL > length(iAvailable)
-        % If there is the warningsDir input argument
-        if nargin == 6
-            % Output error in the warning directory
-            warning(['Bsl empty because there is only %i ', ...
-                'valid slow ratio window and we need %i'], length(iAvailable), ...
-                nWinInBSL);
-        else
-            if  nargin > 4
-                % Output error in the command window
-                warning('%s : Bsl empty because there is only %i valid slow ratio window and we need %i',...
-                    DEF_a7.eventNameSlowRatio, length(iAvailable), nWinInBSL);
-            else
-                % Output error in the command window
-                warning(['Spindle with cov : Bsl empty because there',...
-                    'is only %i valid slow ratio window and we need %i'], length(iAvailable),...
-                    nWinInBSL);            
-            end
-        end
+    if isempty(iAvailable)
+        error(['Spindle with slow ratio sliding windows: Bsl is empty, ',...
+            'DEF_a7.bslLengthSec is set to %i sec, no detection possible'],...
+            DEF_a7.bslLengthSec);            
     else
+        if nWinInBSL > length(iAvailable)
+            if  nargin > 4
+                % Output error in the command window with the event name
+                warning('%s : Bsl is too short it is %d sec and DEF_a7.bslLengthSec is set to %d sec',...
+                    DEF_a7.eventNameSlowRatio, ...
+                    round((length(iAvailable)-1)*DEF_a7.WinStepSec+DEF_a7.winLengthSec),...
+                    DEF_a7.bslLengthSec);
+            else
+                % Output error in the command window without the event name
+                warning(['Spindle with cov : Bsl is too short, ',...
+                    'only %i valid sec and DEF_a7.bslLengthSec is set to %i'], ...
+                    round((length(iAvailable)-1)*DEF_a7.WinStepSec+DEF_a7.winLengthSec),...
+                    DEF_a7.bslLengthSec);            
+            end
+            nWinInBSL = length(iAvailable);
+        end        
         slowRTotal_med        = nan(nWindows,1);
         
         % Because we need to detect spindles only on the valid sample
@@ -155,18 +147,18 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
             end
         end
 
-    % All the windows available to compute the BSL
-    % If the log10 values are used, add +1 to avoid log10(0)=-inf
-    % Adding +1 to the set of values wont influence the distribution
-    if DEF_a7.useLog10ValNoNegSlowRatio == 1
-        % Create a set of covariance values without negative
-        %  we dont care about the negative, it should not happen in spindle
-        slowRNoNeg      = slowRTotal_med;
-        slowRNoNeg(slowRNoNeg<=0)=0;        
-        winBSLNoNaN     = slowRNoNeg(validByWin==1);
-        winBSLNoNaN     = log10(winBSLNoNaN+1);
-        slowRTotal_med  = log10(slowRNoNeg+1); %update the covariance value     
-    end       
+        % All the windows available to compute the BSL
+        % If the log10 values are used, add +1 to avoid log10(0)=-inf
+        % Adding +1 to the set of values wont influence the distribution
+        if DEF_a7.useLog10ValNoNegSlowRatio == 1
+            % Create a set of covariance values without negative
+            %  we dont care about the negative, it should not happen in spindle
+            slowRNoNeg      = slowRTotal_med;
+            slowRNoNeg(slowRNoNeg<=0)=0;        
+            winBSLNoNaN     = slowRNoNeg(validByWin==1);
+            winBSLNoNaN     = log10(winBSLNoNaN+1);
+            slowRTotal_med  = log10(slowRNoNeg+1); %update the covariance value     
+        end       
         
         %-------------------------------------------------------------------------
         %% Detection 
@@ -185,21 +177,22 @@ function [possSpindle, slowRValidTS, slowRInfoTS] = a7subTurnOffDetSlowRatio(...
         % Convert into a sample vector
         % Error check on missing window to have exactly the length of the
         % time series
-        if round(size(slowRValidPerWin,1) * DEF_a7.PSAWindStep * DEF_a7.standard_sampleRate + ...
-                (DEF_a7.PSAWindLength-DEF_a7.PSAWindStep) * DEF_a7.standard_sampleRate) < nTotSamples
+        if round(size(slowRValidPerWin,1) * DEF_a7.WinStepSec * DEF_a7.standard_sampleRate + ...
+                ( DEF_a7.winLengthSec-DEF_a7.WinStepSec) * DEF_a7.standard_sampleRate) < nTotSamples
             slowRValidPerWin = [slowRValidPerWin;0];
             % To output the slowRatio information to debug (learn thresholds)
             slowRTotal_med = [slowRTotal_med;0];
         end
         % We have an overlap between window
-        slowRValidTS = windows2SamplesInSec( slowRValidPerWin, DEF_a7.PSAWindLength, ...
-            DEF_a7.PSAWindStep, DEF_a7.standard_sampleRate, nTotSamples );          
-        slowRInfoTS = windows2SamplesInSec( slowRTotal_med, DEF_a7.PSAWindLength, ...
-            DEF_a7.PSAWindStep, DEF_a7.standard_sampleRate, nTotSamples );  
+        slowRValidTS = windows2SamplesInSec( slowRValidPerWin,  DEF_a7.winLengthSec, ...
+            DEF_a7.WinStepSec, DEF_a7.standard_sampleRate, nTotSamples );          
+        slowRInfoTS = windows2SamplesInSec( slowRTotal_med,  DEF_a7.winLengthSec, ...
+            DEF_a7.WinStepSec, DEF_a7.standard_sampleRate, nTotSamples );  
         
         % Take the max of the overlap values 
         % (if any of the PSA window is an estimation of the NREM)
         slowRValidTS = max(slowRValidTS, [], 1, 'omitnan');
+        slowRValidTS = slowRValidTS'; % function is column wise
         slowRInfoTS = mean(slowRInfoTS, 1, 'omitnan');  
         
         % Update the possible spindle with the selection of the NREM2

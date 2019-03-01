@@ -1,3 +1,6 @@
+function [PSD, freqBins] = calcPSDNormType(dataVector, DEF_a7, windowScalingType,...
+    removeMean, zeroPad, normType)
+
 % calcPSD.m
 % 
 % Purpose:
@@ -6,23 +9,16 @@
 % and 'IntegSpectPow'.
 %
 % Input: 
-%   data:               input timeseries, should be a tall vector.
-%   DEF_a7 - DEF option for the a7 spindle
-%       DEF_a7.standard_sampleRate = 100  sampleRate of the timeseries data
-%       DEF_a7.PSAWindLength:             length of the time series taken to comptue the FFT, in seconds
-%       DEF_a7.PSAWindStep:               interval of the sliding window, in secondds ie 1 = window slides by 1 sec steps
-%       DEF_a7.PSAZWindLength:            (optional) Number of sec with zeros padding around the signal if
-%                                         zeroPad is asserted (could increase the frequency resolution).
-%                                         If this input does not exist and zeroPad is asserted
-%                                         data will be zeros padded to the next length factor of 2 (usually for speed).
-%   windowScalingType:  window function ie 'hann', 'rectwin'
-%   removeMean:         To remove the mean (the DC value is written at the
+%   dataVector        : input timeseries, should be a tall vector.
+%   DEF_a7            : structure of a7 settings
+%   windowScalingType : window function ie 'hann', 'rectwin'
+%   removeMean:       : To remove the mean (the DC value is written at the
 %                       freq=0, but it is not taken into account in the
 %                       normalization
-%   zeroPad:            To pad data with zeros to a length factor of 2 (usually for speed).
+%   zeroPad:          : To pad data with zeros to a length factor of 2 (usually for speed).
 %                       The resolution of the FFT is inscreased in that
 %                       case.
-%   normType:           normalization method to use: 
+%   normType:         : normalization method to use: 
 %                       'NoNorm', 'ScalFact', 'EnergyCons', 'IntegSpectPow'
 %
 % Output:
@@ -38,10 +34,7 @@
 % Karine lacourse 2015-05
 % Jacques Delfrate 2018-02
 
-function [PSD, freqBins] = calcPSDNormType(dataVector, DEF_a7, windowScalingType,...
-    removeMean, zeroPad, normType)                                    
-
-    if DEF_a7.PSAWindStep == 0
+    if DEF_a7.WinStepSec == 0
         error('PSD computation: the overlap of the fft window is 100%, a minimum slide of 1 sample is needed');
     end
 
@@ -50,27 +43,27 @@ function [PSD, freqBins] = calcPSDNormType(dataVector, DEF_a7, windowScalingType
     %--------------------------------------------------------------------------
     if nargin==5
         if zeroPad==0
-            nFFTSamples = round(DEF_a7.PSAWindLength*DEF_a7.standard_sampleRate);
+            nFFTSamples = round( DEF_a7.winLengthSec*DEF_a7.standard_sampleRate);
         else
             % or use next highest power of 2 greater than or equal to length(x) to calculate FFT.
-            nFFTSamples = 2^(nextpow2(DEF_a7.PSAWindLength*DEF_a7.standard_sampleRate));
+            nFFTSamples = 2^(nextpow2( DEF_a7.winLengthSec*DEF_a7.standard_sampleRate));
         end
     elseif nargin==6
         if zeroPad==0
-            nFFTSamples = round(DEF_a7.PSAWindLength*DEF_a7.standard_sampleRate);
+            nFFTSamples = round( DEF_a7.winLengthSec*DEF_a7.standard_sampleRate);
         else 
             % or use the specified length in the input argument
-            nFFTSamples = round( DEF_a7.PSAZWindLength*DEF_a7.standard_sampleRate);
+            nFFTSamples = round( DEF_a7.ZeroPadSec*DEF_a7.standard_sampleRate);
         end        
     else
         error('calcPSDNormType needs 8 or 9 input arguments');
     end
     
     dataLength_sec = length(dataVector)/DEF_a7.standard_sampleRate ;   % total length of the timeseries; in seconds
-    nFFTWind = floor((dataLength_sec-DEF_a7.PSAWindLength)/DEF_a7.PSAWindStep)+1 ;  % number of fft windows needed
+    nFFTWind = floor((dataLength_sec- DEF_a7.winLengthSec)/DEF_a7.WinStepSec)+1 ;  % number of fft windows needed
 
     % Number of samples from the time seires included in the FFT window
-    nDataSampleInFFTWind = round(DEF_a7.PSAWindLength * DEF_a7.standard_sampleRate);
+    nDataSampleInFFTWind = round( DEF_a7.winLengthSec * DEF_a7.standard_sampleRate);
     % Window Scaling Function - weight the values in the analysis window (ie hann)
     wt = (0:nDataSampleInFFTWind-1)/(nDataSampleInFFTWind-1);
     % Some scaling windows are not computed with the matlab function "eval"
@@ -120,8 +113,8 @@ function [PSD, freqBins] = calcPSDNormType(dataVector, DEF_a7, windowScalingType
     for iA = 1:nFFTWind
 
         % Extract the FFT window from data, the start position moves with each loop 
-        start = round((iA-1)*DEF_a7.PSAWindStep*DEF_a7.standard_sampleRate);
-        dataWindow = dataVector(start+1 : start + round(DEF_a7.PSAWindLength*DEF_a7.standard_sampleRate)) ;  
+        start = round((iA-1)*DEF_a7.WinStepSec*DEF_a7.standard_sampleRate);
+        dataWindow = dataVector(start+1 : start + round( DEF_a7.winLengthSec*DEF_a7.standard_sampleRate)) ;  
 
         %----------------------------------------------------------------------
         % (1) Remove the mean of the signal, dc offset
@@ -144,7 +137,7 @@ function [PSD, freqBins] = calcPSDNormType(dataVector, DEF_a7, windowScalingType
         %----------------------------------------------------------------------
         if(zeroPad)
             dataWindowZeroPad = zeros(nFFTSamples,1);
-            nZeroPad = round(nFFTSamples-DEF_a7.PSAWindLength*DEF_a7.standard_sampleRate);
+            nZeroPad = round(nFFTSamples- DEF_a7.winLengthSec*DEF_a7.standard_sampleRate);
             dataWindowZeroPad( round(nZeroPad/2) + 1 : round(nZeroPad/2) + ...
                 length(dataWindowScaled) ) = dataWindowScaled;
             dataWindowScaled = dataWindowZeroPad;

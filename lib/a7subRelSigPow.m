@@ -8,17 +8,10 @@ function [relSigmaDistVect, PSDLowFreq, PSDHighFreq] = ...
 %   The threshold is specified in STD distance from the mean. 
 %
 % Input:
-%   dataVector      - input timeseries, detector will run on this data.
-%   channelName     - name of the input channel; transferred to the EVENTS output.
-%   validSampleVect - selection vector of samples to compute the BSL
-%   DEF_a7 - DEF option for the a7 spindle
-%       DEF_a7.PSAWindLength       = 0.5;    % window length in sec for PSA
-%       DEF_a7.PSAZWindLength      = 2;      % window length with zero pad in sec for PSA
-%       DEF_a7.PSAWindStep         = 0.1;    % window step in sec for PSA
-%       DEF_a7.bslLengthSec        = 30;     % length of the baseline in sec
-%       DEF_a7.standard_sampleRate = 100     % sampleRate of the timeseries data, needed for the calcPSD.
-%       DEF_a7.relSigPow_Th                  % relative sigma power threshold
-%   
+%   dataVector      : input timeseries, detector will run on this data.
+%   validSampleVect : selection vector of samples to compute the BSL
+%   DEF_a7          : structure of a7 detection settings
+%
 % Output
 %   relSigmaDistVect - vector of the information used to detect, same number of datapoints as input dataVector.
 %   PSDLowFreq - tall vector of the energy in the low band of the slow ratio
@@ -121,7 +114,7 @@ end
 
     % Convert the valid sample vector per PSA window
     invalidSampleByPSDWin   = samples2WindowsInSec( ~validSampleVect, ...
-        size(PSD,1), DEF_a7.PSAWindLength, DEF_a7.PSAWindStep, DEF_a7.standard_sampleRate);
+        size(PSD,1),  DEF_a7.winLengthSec, DEF_a7.WinStepSec, DEF_a7.standard_sampleRate);
     invalidSampleByPSDWin   = sum(invalidSampleByPSDWin,2);
     validSampleByPSDWin     = (invalidSampleByPSDWin==0);
 
@@ -139,33 +132,40 @@ end
     % a clean baseline (ex. BLS length is 3 mins and PSD window is 2 sec, then
     % we need 45 clean PSD windows to create a clean baseline)
     iAvailable          = find(validSampleByPSDWin==1);
-    nFFTWinInBSL        = round(DEF_a7.bslLengthSec/DEF_a7.PSAWindStep);
+    nFFTWinInBSL        = floor( (DEF_a7.bslLengthSec-DEF_a7.winLengthSec) / DEF_a7.WinStepSec) +1;
 
     % If there is less valid windows than the number required to compute the
     % baseline (then there less valid windows than 3 mins in the whole
     % recording)
-    if nFFTWinInBSL > length(iAvailable)
-        % If there is the warningsDir input argument
-        if nargin == 4
-            % Output error in the warning directory
-            warning('Bsl empty because there is only %i valid PSD and we need %i',...
-                length(iAvailable), nFFTWinInBSL);
-             warning('%s : Bsl empty because there is only %i valid window and we need %i',...
-                   eventName, length(iAvailable), nWinInBSL);
+    if isempty(iAvailable)
+        % no detection possible
+        relSigmaDistVect    = [];        
+        if  nargin > 1
+            % Output warning in the command window in the event name
+            error('%s : Bsl is empty, DEF_a7.bslLengthSec is set to %d sec, no detection possible',...
+                DEF_a7.eventNameRelSigPow, DEF_a7.bslLengthSec);
         else
-            if  nargin > 1
-                % Output error in the command window
-                warning('%s : Bsl empty because there is only %i valid PSD and we need %i',...
-                    DEF_a7.eventNameRelSigPow, length(iAvailable), nFFTWinInBSL);
-            else
-                % Output error in the command window
-                warning(['Spindle with Brunner : Bsl empty because there',...
-                    'is only %i valid PSD and we need %i'], length(iAvailable),...
-                    nFFTWinInBSL);            
-            end
-        end
-        relSigmaDistVect    = [];
+            % Output error in the command window without the event name
+            error(['Spindle detection with sliding windows : Bsl is empty,',...
+                ' DEF_a7.bslLengthSec is set to %d, no detection possible'], DEF_a7.bslLengthSec);            
+        end      
     else
+        if nFFTWinInBSL > length(iAvailable)
+            if  nargin > 1
+                % Output warning in the command window in the event name
+                warning('%s : Bsl is too short it is %d sec and DEF_a7.bslLengthSec is set to %d sec',...
+                    DEF_a7.eventNameRelSigPow, ...
+                    round((length(iAvailable)-1)*DEF_a7.WinStepSec+DEF_a7.winLengthSec), ...
+                    DEF_a7.bslLengthSec);
+            else
+                % Output error in the command window without the event name
+                warning(['Spindle with relative sigma power sliding windows : ',...
+                    'Bsl is too short it is %d sec and DEF_a7.bslLengthSec is set to %d sec'],...
+                    round((length(iAvailable)-1)*DEF_a7.WinStepSec+DEF_a7.winLengthSec),...
+                    DEF_a7.bslLengthSec);            
+            end  
+            nFFTWinInBSL = length(iAvailable);
+        end
         PSDtotal_threshold  = nan(nPSDWindow,1);
         PSDtotal_SD         = nan(nPSDWindow,1);
         PSDtotal_med        = nan(nPSDWindow,1);
@@ -271,18 +271,18 @@ end
         % Convert the relSigmaPow distance into a sample vector
         % Error check on missing window to have exactly the length of the
         % time series
-        if round(size(PSDDistWin,1) * DEF_a7.PSAWindStep * DEF_a7.standard_sampleRate + ...
-                ((DEF_a7.PSAWindLength * DEF_a7.standard_sampleRate)-(DEF_a7.PSAWindStep * DEF_a7.standard_sampleRate))) ...
+        if round(size(PSDDistWin,1) * DEF_a7.WinStepSec * DEF_a7.standard_sampleRate + ...
+                (( DEF_a7.winLengthSec * DEF_a7.standard_sampleRate)-(DEF_a7.WinStepSec * DEF_a7.standard_sampleRate))) ...
                 < length(dataVector)
             PSDDistWin = [PSDDistWin;0];
         end
-        PSDDistWinMat = windows2SamplesInSec( PSDDistWin, DEF_a7.PSAWindLength, ...
-            DEF_a7.PSAWindStep, DEF_a7.standard_sampleRate, length(dataVector) );            
+        PSDDistWinMat = windows2SamplesInSec( PSDDistWin,  DEF_a7.winLengthSec, ...
+            DEF_a7.WinStepSec, DEF_a7.standard_sampleRate, length(dataVector) );            
 
-        % The resolution is DEF_a7.PSAWindStep, but we consider only the maximum
+        % The resolution is DEF_a7.WinStepSec, but we consider only the maximum
         % relative sigma power through all the overlapped PSA window
         PSDDistWinMean     = mean(PSDDistWinMat,'omitnan');
-        PSDDistWinSTD      = std(PSDDistWinMat,'omitnan');
+        PSDDistWinMean     = fillmissing(PSDDistWinMean,'previous');
 
         % This information should be visually inspected on NYX viewer
         % or summarize for every spindle from the gold standard

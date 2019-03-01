@@ -36,6 +36,8 @@ This summarizes each MATLAB function implemented for the A7 spindle detection al
     Save data into text file
 * eventSmpList2DetectVect.m
 	Generate a detection vector per sample from a list of events.
+* detectValidSSBaseline.m
+        Compute if sleep staging definied in the init is/are member of the input sleep stage vector
 * event_StartsEndsDurations.m
 	Identification of start and stop indexes of events (1) in a binary (logical 0/1) vector.
 * findFreqIndex.m

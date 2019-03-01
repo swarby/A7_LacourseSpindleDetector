@@ -1,3 +1,4 @@
+function [STARTS, ENDS, DURATIONS] = event_StartsEndsDurations(dataVector)
 % event_StartsEndsDurations.m
 % 
 % Purpose:
@@ -7,14 +8,11 @@
 % Usage:
 % [STARTS, ENDS, DURATIONS] = event_StartsEndsDurations(dataVector)
 %
-% dataVector - input timeseries, needs to be binary or logical (0/1).
+% dataVector : input timeseries, needs to be binary or logical (0/1).
 %
 % STARTS - index of the start positions of events
 % ENDS - index of the stop position
 % DURATIONS - number of consecutive events
-%
-% Requirements:
-%
 %
 % Notes:
 % The unit of duration is the 'number of events', ie usually samples.
@@ -29,9 +27,6 @@
 % 
 % Changelog:
 % Changed function name; added duration to output SCW 2014-06-16
-
-
-function [STARTS, ENDS, DURATIONS] = event_StartsEndsDurations(dataVector)
 
 %% Input checks
 if nargin==1

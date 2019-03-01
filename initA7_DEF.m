@@ -35,11 +35,32 @@ clc;
  % A7 default parameters
     % Sampling rate of the eeg vector.
     DEF_a7.standard_sampleRate = 100;
+    
     % Sleep stage considered in the baseline.  
-    % Set to ['N2', 'N3'] to consider stage 'N2' and 'N3'  as baseline, 
-    % ['2'] for just stage '2' etc.
+    % Set to {'N2', 'N3'} to consider stage N2 and N3  as baseline, 
+    % '2' for just stage 2 etc.
     % Note that the stage units must match what is found in the
     % sleepStaging input file (sleepStaging.mat) 
-    % (ie use '2', or 'N2' if '2' or 'N2' is used etc.)
-    DEF_a7.bslSleepStaging = ['N2'];
+    % (ie use '2', or 'N2' if 2 or N2 is used in the input sleep staging etc.)
+    DEF_a7.bslSleepStaging = ['N2']; % or {'N2'}
+    
+    % DEF_a7.inContOn=0 (off): the context classifier is by passed 
+    % DEF_a7.inContOn=1 (on): the context classifier is run and all the
+    %   spindles detected are kept (IN and OUT context).  
+    %   The expected spectral context (NREM class) for each spindle 
+    %   is written in the nremClassifier.mat
+    DEF_a7.inContOn     = 1;  % context classifier On/Off - 1/0
+    
+    
+    % To filter out spindles occuring during an artifact
+    %   DEF_a7.spindleNoArt=0 (off) : all the spindles detected are kept (with or without artifact).
+    %       All the spindles will be reported in the EventDetection.txt, where
+    %       artifact column=0 spindles free of artifact, 
+    %       artifact column=1 spindles co-occurring with artifact.
+    %   DEF_a7.spindleNoArt=1 (on) : remove spindles coincident with artifact
+    %       Spindles co-occurring with artifact wont be reported in the EventDetection.txt
+    DEF_a7.spindleNoArt = 0; % Turn off spindle event during an artifact    
+    
+    % Print in the command window the option definition 
+    DEF_a7
 

@@ -45,7 +45,7 @@
 %            Jacques Delfrate
 %  Date    : 2018-02-13
 % 
-%  RELEASE : v1.0 with MATLAB 9.1.0.441655 (R2016b)
+%  RELEASE : v1.1 with MATLAB 9.1.0.441655 (R2016b)
 %            Note that this code may not run on previous versions of MATLAB.  
 %            For example, it does not work with R2012a due to changes to 'omitnan' flags for math functions (ie sum).
 %
@@ -56,9 +56,9 @@
 %     any modifications are also freely distributed.
 %
 %     When using this code or modifications of this code, please cite:
-%         Lacourse K, Defrate J, Beaudry J, Peppard P, Warby SC. 2018. A sleep spindle 
-%         detection algorithm that emulates human expert spindle scoring.  [Full citation 
-%         to be determined].
+%       Lacourse, K., Delfrate, J., Beaudry, J., Peppard, P. & Warby, S. C. 
+%       A sleep spindle detection algorithm that emulates human expert spindle scoring. 
+%       J. Neurosci. Methods (2018). doi:10.1016/j.jneumeth.2018.08.014
 %
 %
 %-------------------------------------------------------------------------
@@ -66,6 +66,7 @@
 %% a7 inits
 % A7 features and path init
 initA7_DEF;
+
 % A7 thresholds
     % Sigma based thresholds
     DEF_a7.absSigPow_Th = 1.25; % absSigPow threshold (sigma power log10 transformed)
@@ -81,11 +82,10 @@ initA7_DEF;
 % Context Classifier definition (Slow ratio)   
     % Slow ratio filter
     DEF_a7.lowFreqLow   = 0.5; % frequency band of delta + theta
-    DEF_a7.lowFreqHigh  = 8;   % frequency band of delta + theta
-    DEF_a7.highFreqLow  = 16;  % frequency band of beta
-    DEF_a7.highFreqHigh = 30;  % frequency band of beta.
-    % Detection In Context
-    DEF_a7.inContOn     = 1;   % context classifier On/Off - 1/0
+    DEF_a7.lowFreqHigh  = 8.0;   % frequency band of delta + theta
+    DEF_a7.highFreqLow  = 16.0;  % frequency band of beta
+    DEF_a7.highFreqHigh = 30.0;  % frequency band of beta.
+    % Detection In Context 
     DEF_a7.slowRat_Th   = 0.9; % slow ratio threshold for the spindle spectral context
     
 % Sigma filter definition
@@ -93,25 +93,15 @@ initA7_DEF;
     DEF_a7.sigmaFreqHigh = 16.0;   % sigma frequency band high
     DEF_a7.fOrder        = 20.0;   % filter order for the sigma band
     
-% Broad band filter definition
+% Baseline filter definition for relative sigma power
     DEF_a7.totalFreqLow     = 4.5; % frequency band of the broad band
-    DEF_a7.totalFreqHigh    = 30;  % frequency band of the broad band
+    DEF_a7.totalFreqHigh    = 30.0;  % frequency band of the broad band
     
 % Sliding windows definition
-    % A7 threshold window
-    DEF_a7.absWindLength    = 0.3;  % window length in sec for absSigPow and sigmaCov
-    DEF_a7.absWindStep      = 0.1;  % window step in sec for absSigPow and sigmaCov
-    DEF_a7.relWindLength    = 0.3;  % window length in sec for sigmaCorr
-    DEF_a7.relWindStep      = 0.1;  % window step in sec for sigmaCorr
-    % PSA window
-    DEF_a7.PSAWindLength    = 0.3;  % window length in sec for PSA
-    DEF_a7.PSAZWindLength   = 2;    % window length with zero pad in sec for PSA
-    DEF_a7.PSAWindStep      = 0.1;  % window step in sec for PSA
-    % Spindle detection window
+    % Detection and PSA window
     DEF_a7.winLengthSec     = 0.3;  % window length in sec
     DEF_a7.WinStepSec       = 0.1;  % window step in sec
     DEF_a7.ZeroPadSec       = 2;    % zero padding length in sec
-    % Window definition
     DEF_a7.bslLengthSec     = 30;   % baseline length to compute the z-score of rSigPow and sigmaCov
     
 % Parameter settings
@@ -131,13 +121,12 @@ initA7_DEF;
     DEF_a7.filterOrderSigmaCov        = 20;             % Define the filter order
     % 1 = On / 0 = Off
     DEF_a7.useLimPercSigmaCov         = 1;              % Consider only the baseline included in the percentile selected
-    DEF_a7.removeDeltaFromRawSigmaCov = 0;              % To filter out the delta signal from the raw signal to compute the covariance or the correlation
+    DEF_a7.removeDeltaFromRawSigmaCov = 0;              % To filter out the delta signal from the raw signal to compute the covariance
     DEF_a7.useMedianWindSigmaCov      = 0;              % On: Use the median to the bsl normlization, Off: Use the mean value
     DEF_a7.useLog10ValNoNegSigmaCov   = 1;              % On: Use log10 distribution (It is more similar to normal distribution)
     % Settings used in a7subSigmaCorr.m 
-    DEF_a7.filterOrderSigCorr         = 20;             % The filter order
     % 1 = On / 0 = Off
-    DEF_a7.removeDeltaFromRawSigCorr  = 0;              % On: Use the median to the bsl normlization, Off: Use the mean value
+    DEF_a7.removeDeltaFromRawSigCorr  = 0;              % To filter out the delta signal from the raw signal to compute the correlation
 
     % Settings used in a7subTurnOffDetSlowRatio.m
     DEF_a7.eventNameSlowRatio         = 'a7SlowRatio';  % event name for warnings
@@ -145,13 +134,15 @@ initA7_DEF;
     DEF_a7.useMedianWindSlowRatio     = 0;              % On: Use the median to the bsl normlization, Off: Use the mean value
     DEF_a7.useLog10ValNoNegSlowRatio  = 1;              % On: Use log10 distribution (It is more similar to normal distribution)
     
-%% Other inits 
+%% Other inits description 
     % output date
     DEF_a7.date = datestr(now,'yyyymmdd_HHMMSS');
     % add libraries to path
     addpath(genpath('./lib'));
     
 %% Script
+fprintf('Data is loading...\n');
+
 %--------------------------------------------------------------------------
 % Section 1.1 Load a EEG signal to run the detector
 %--------------------------------------------------------------------------
@@ -162,7 +153,6 @@ initA7_DEF;
 %--------------------------------------------------------------------------
 % Section 1.2 Load the sleep staging
 %--------------------------------------------------------------------------
-    % could leave as [] if the bslSleepStaging is set to []
     sleepStageVect = load([DEF_a7.inputPath, DEF_a7.sleepStaging]); % by-sample
     sleepStageVect = sleepStageVect.sleepStageVect;
     
