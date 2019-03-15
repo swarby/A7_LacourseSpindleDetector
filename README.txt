@@ -1,6 +1,6 @@
 # README #
 
-* Release Version 1.1
+* Release Version 1.1.1
 
 ### What is this code for? ###
 
@@ -95,7 +95,8 @@ It is likely that you will want to filter the spindle detections in the results 
         J. Neurosci. Methods (2018). doi:10.1016/j.jneumeth.2018.08.014
 
 ### Change log: ###
-
+-rev1.1.1 -2019-03-15
+	NREMClass is forced empty when no spindle is detected
 -rev1.1 -2019-02-21
 	Moved the option DEF_a7.inContOn (NREM classifier) into the initA7_DEF
 	Added the option DEF_a7.spindleNoArt to turn off spindle events that occur during an artifact
