@@ -224,6 +224,7 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
             end             
         else
             slowRInfoTS  = [];
+            NREMClass = [];
         end            
 
 
@@ -231,7 +232,7 @@ function [detectionVectFix, slowRInfoTS, NREMClass] = ...
         % No detections possible
         detectionVectFix = zeros(nSamples,1);
         slowRInfoTS  = [];
-	NREMClass = [];
+        NREMClass = [];
         % Write a warning if no spindle is found
         warning('No spindles detected');        
     end

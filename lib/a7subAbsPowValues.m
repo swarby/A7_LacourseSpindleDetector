@@ -41,9 +41,9 @@ function absSigmaPow = a7subAbsPowValues( dataVector, DEF_a7)
     % ------ SIGMA ---------
     % Filter the signal
     timeSeriesFilt  = butterFiltZPHighPassFiltFilt(...
-        dataVector, DEF_a7.sigmaFreqLow, DEF_a7.standard_sampleRate, 20);
+        dataVector, DEF_a7.sigmaFreqLow, DEF_a7.standard_sampleRate, DEF_a7.fOrder);
     timeSeriesFilt  = butterFiltZPLowPassFiltFilt(...
-        timeSeriesFilt, DEF_a7.sigmaFreqHigh, DEF_a7.standard_sampleRate, 20);
+        timeSeriesFilt, DEF_a7.sigmaFreqHigh, DEF_a7.standard_sampleRate, DEF_a7.fOrder);
     % Convert the vector per sample into a matrix 
     % [nWindow x windowLengthInSample]
     sampleMat4E   = samples2WindowsInSec(timeSeriesFilt, nWindows, ...

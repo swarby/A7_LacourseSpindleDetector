@@ -1,6 +1,6 @@
 # README #
 
-* Release Version 1.1.1
+* Release Version 1.1.2
 
 ### What is this code for? ###
 
@@ -95,6 +95,8 @@ It is likely that you will want to filter the spindle detections in the results 
         J. Neurosci. Methods (2018). doi:10.1016/j.jneumeth.2018.08.014
 
 ### Change log: ###
+-rev1.1.2 -2019-04-09
+	NREMClass is forced empty when DEF_a7.inContOn=0 (In context is turned off)
 -rev1.1.1 -2019-03-15
 	NREMClass is forced empty when no spindle is detected
 -rev1.1 -2019-02-21

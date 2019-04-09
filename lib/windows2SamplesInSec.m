@@ -26,11 +26,11 @@ function [ dataMat ] = windows2SamplesInSec( dataPerWindow, winLengthInSec, ...
 %   dataMat:            row data vector per sample
 %                       matrix if there is supperposition of window
 %                       ex: nSamplesPerWindow = 3; nSamplesPerInterv = 2;                     
-%                           dataMat =   [1,1,1,0,3,3,3...
-%                                        0,0,2,2,2,0,4...]
+%                           dataMat =   [1,  1,  1,NaN,3,3,3...
+%                                        NaN,NaN,2,2,  2,NaN,4...]
 %                       ex: nSamplesPerWindow = 4; nSamplesPerInterv = 2;                     
 %                           dataMat =   [1,1,1,1,3,3,3,3...
-%                                        0,0,2,2,2,2,4...]
+%                                        NaN,NaN,2,2,2,2,4...]
 %                       ex: nSamplesPerWindow = 4; nSamplesPerInterv = 1;  
 %                           dataPerWindow = [1;2;3;4;5;6;7;8;9;10]
 %                           dataMat =   [1,  1,  1,  1,5,5,5,5,9, 9, 9,   9,  NaN
