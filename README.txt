@@ -83,7 +83,7 @@ It is likely that you will want to filter the spindle detections in the results 
 
 ### Who do I talk to if I need help? ###
 
-* Contact Simon Warby : simon.c.warby@umontreal.ca
+* Contact Karine Lacourse : karine.lacourse.cnmtl@ssss.gouv.qc.ca
 
 ### REMARKS : ###
     Free use and modification of this code is permitted, provided that
